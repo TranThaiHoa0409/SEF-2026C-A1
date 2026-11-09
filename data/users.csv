@@ -1,0 +1,9 @@
+user_id,name,email,system_role,is_active
+U01,Admin An,admin@bizboard.demo,System Administrator,True
+U02,Hoa,hoa@bizboard.demo,Business User,True
+U03,Len,len@bizboard.demo,Business User,True
+U04,Phu,phu@bizboard.demo,Business User,True
+U05,Yuki,yuki@bizboard.demo,Business User,True
+U06,Mai,mai@bizboard.demo,Business User,True
+U07,Bao,,Business User,True
+U08,Nam,nam@bizboard.demo,Business User,False

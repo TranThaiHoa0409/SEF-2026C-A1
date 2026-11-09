@@ -1,0 +1,21 @@
+order_id,order_datetime,customer_id,region,city,product_category,product_name,sales_channel,device,payment_method,discount_code,unit_price,quantity,discount_amount,order_value,status
+O12701,2026-11-05 00:07:49,C4618,North,Hai Phong,Subscription,Monthly Beans Box,Website,Desktop,E-wallet,SAVE10,29.69,1,2.97,26.72,completed
+O12719,2026-11-05 00:35:42,C5972,North,Hai Phong,Coffee Beans,Single Origin Sample Pack,Mobile Web,Mobile,Cash on delivery,,23.79,1,0.0,23.79,completed
+O12724,2026-11-05 00:36:40,C5967,Central,Hue,Coffee Beans,Arabica Dalat 250g,Website,Desktop,E-wallet,WELCOME,15.2,4,9.12,51.68,completed
+O12696,2026-11-05 02:26:09,C2856,South,Ho Chi Minh City,Equipment,Pour-over Dripper,Mobile Web,Mobile,Bank transfer,,36.74,1,0.0,36.74,completed
+O12712,2026-11-05 04:52:59,C3469,South,Ho Chi Minh City,Subscription,Monthly Beans Box,Marketplace,Mobile,Cash on delivery,SAVE10,29.14,1,2.91,26.23,completed
+O12683,2026-11-05 05:43:58,C3633,South,Can Tho,Equipment,Pour-over Dripper,Mobile Web,Mobile,E-wallet,,36.28,1,0.0,36.28,completed
+O12728,2026-11-05 05:45:48,C5149,South,Ho Chi Minh City,Merchandise,Tumbler,Mobile Web,Mobile,Card,,23.45,1,0.0,23.45,completed
+O12685,2026-11-05 06:14:55,C2644,North,Hanoi,Subscription,Monthly Beans Box,Mobile Web,Mobile,E-wallet,,28.86,1,0.0,28.86,completed
+O12720,2026-11-05 06:56:54,C0765,South,Ho Chi Minh City,Subscription,Monthly Beans Box,Marketplace,Mobile,Cash on delivery,,29.77,1,0.0,29.77,cancelled
+O12677,2026-11-05 07:39:29,C4389,North,Hanoi,Merchandise,Tumbler,Mobile Web,Mobile,Card,,23.42,1,0.0,23.42,completed
+O12722,2026-11-05 08:05:50,C4556,Central,Da Nang,Merchandise,Tumbler,Marketplace,Mobile,E-wallet,,23.72,3,0.0,71.16,completed
+O12694,2026-11-05 08:18:09,C2087,South,Can Tho,Subscription,Monthly Beans Box,Mobile Web,Mobile,Bank transfer,,29.37,1,0.0,29.37,completed
+O12682,2026-11-05 08:35:08,C0435,South,Can Tho,Coffee Beans,Espresso Blend 1kg,Mobile Web,Desktop,Card,SAVE10,29.25,3,8.78,78.97,completed
+O12723,2026-11-05 08:39:35,C5825,North,Hanoi,Subscription,Monthly Beans Box,Mobile Web,Mobile,Card,,28.59,1,0.0,28.59,completed
+O12704,2026-11-05 08:40:03,C5965,South,Ho Chi Minh City,Merchandise,Tumbler,Mobile Web,Desktop,Card,,23.83,3,0.0,71.49,completed
+O12701,2026-11-05 00:07:49,C4618,North,Hai Phong,Subscription,Monthly Beans Box,Website,Desktop,E-wallet,SAVE10,29.69,1,2.97,26.72,completed
+O12719,2026-11-05 00:35:42,C5972,North,Hai Phong,Coffee Beans,Single Origin Sample Pack,Mobile Web,Mobile,Cash on delivery,,23.79,1,0.0,23.79,completed
+O12724,2026-11-05 00:36:40,C5967,Central,Hue,Coffee Beans,Arabica Dalat 250g,Website,Desktop,E-wallet,WELCOME,15.2,4,9.12,51.68,completed
+O12696,2026-11-05 02:26:09,C2856,South,Ho Chi Minh City,Equipment,Pour-over Dripper,Mobile Web,Mobile,Bank transfer,,36.74,1,0.0,36.74,completed
+O12712,2026-11-05 04:52:59,C3469,South,Ho Chi Minh City,Subscription,Monthly Beans Box,Marketplace,Mobile,Cash on delivery,SAVE10,29.14,1,2.91,26.23,completed

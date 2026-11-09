@@ -1,0 +1,7 @@
+rule_id,owner_id,kpi,condition,threshold,is_active
+R01,U02,Total Revenue,goes below,1000.0,True
+R02,U02,Total Revenue,goes above,3500.0,True
+R03,U04,Conversion Rate,goes below,0.2,True
+R04,U03,New Customers,goes below,10.0,False
+R05,U04,Total Revenue,goes below,2500.0,True
+R06,U05,Active Users,goes above,1200.0,True

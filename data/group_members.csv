@@ -1,0 +1,9 @@
+group_id,user_id,group_role
+G01,U03,Group Owner
+G01,U04,Member
+G01,U06,Member
+G02,U05,Group Owner
+G02,U06,Member
+G02,U07,Member
+G03,U02,Group Owner
+G03,U03,Member

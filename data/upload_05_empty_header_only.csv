@@ -1,0 +1,1 @@
+order_id,order_datetime,customer_id,region,city,product_category,product_name,sales_channel,device,payment_method,discount_code,unit_price,quantity,discount_amount,order_value,status
