@@ -59,6 +59,7 @@ def view(report_id: int, user: dict = Depends(auth.current_user)):
     r.pop("pdf_path", None)
     is_owner = r["owner_id"] == user["id"]
     r["is_owner"] = is_owner
+    r["can_write_notes"] = auth.can(user, "write_note", r)
     if is_owner:
         with db.get_conn() as conn:
             r["shares"] = shares.list_shares(conn, "report", report_id)

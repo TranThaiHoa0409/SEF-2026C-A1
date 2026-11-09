@@ -81,14 +81,35 @@ def is_shared_with(item_type: str, item_id: int, user_id: str) -> bool:
     return row is not None
 
 
+def _shared_via_group(report_id: int, user_id: str) -> bool:
+    from . import notes
+    with db.get_conn() as conn:
+        return notes.shared_via_group(conn, report_id, user_id)
+
+
 def can(user: dict, action: str, item: Optional[dict] = None) -> bool:
     """Một chỗ duy nhất quyết định quyền. Các bước sau thêm action mới vào đây."""
     if action in ("upload_data", "view_upload_history"):
         return user["is_admin"]
-    if action == "dev_tools":
+    if action in ("dev_tools", "admin"):
         return user["is_admin"]
     if item is None:
         return False
+    # Nhóm: item là nhóm có owner_id và member_ids.
+    if action == "view_group":
+        return user["is_admin"] or user["id"] in item["member_ids"]
+    if action == "manage_group":
+        return user["is_admin"] or item["owner_id"] == user["id"]
+    if action == "leave_group":
+        return user["id"] in item["member_ids"]
+    # Ghi chú: write_note nhận báo cáo; edit/delete nhận ghi chú (có report_id, report_owner_id, author_id).
+    if action == "write_note":
+        return item["owner_id"] == user["id"] or _shared_via_group(item["id"], user["id"])
+    if action in ("edit_note", "delete_note"):
+        can_view = item["report_owner_id"] == user["id"] or is_shared_with("report", item["report_id"], user["id"])
+        if action == "edit_note":
+            return can_view and item["author_id"] == user["id"]
+        return user["is_admin"] or (can_view and user["id"] in (item["author_id"], item["report_owner_id"]))
     if action in ("view_snapshot", "view_report"):
         kind = action.removeprefix("view_")
         return item["owner_id"] == user["id"] or is_shared_with(kind, item["id"], user["id"])

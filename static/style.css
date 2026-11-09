@@ -123,3 +123,10 @@ a.button { display: inline-flex; align-items: center; min-height: 44px; padding:
 .share-box { margin-top: 16px; }
 .share-row { display: grid; grid-template-columns: 1fr; gap: 8px; }
 @media (min-width: 600px) { .share-row { grid-template-columns: 1fr auto; align-items: end; } }
+
+/* Nhóm, ghi chú, Admin */
+textarea { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; width: 100%; color: var(--text); background: var(--card); }
+.notes-box { margin-top: 16px; }
+#note-form { display: grid; gap: 8px; }
+#grp-manage { margin-top: 12px; }
+.role { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 0 8px; margin-left: 6px; color: var(--muted); }

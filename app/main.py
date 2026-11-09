@@ -9,7 +9,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, db, scheduler
-from .routers import alerts, analytics, dashboard, dev, kpis, reports, session, shares, snapshots, uploads
+from .routers import (admin, alerts, analytics, dashboard, dev, groups, kpis, notes, reports, session, shares,
+                      snapshots, uploads)
 
 
 @asynccontextmanager
@@ -28,7 +29,7 @@ app.include_router(uploads.router)
 app.include_router(dashboard.router)
 app.include_router(snapshots.router)
 app.include_router(analytics.router)
-for r in (reports, shares, alerts, dev):
+for r in (reports, shares, alerts, dev, groups, notes, admin):
     app.include_router(r.router)
 
 

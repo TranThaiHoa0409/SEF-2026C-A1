@@ -17,6 +17,7 @@
       <a href="#/reports">Reports</a>
       <a href="#/alerts">Alerts <span class="count" id="unread" hidden></span></a>
       <a href="#/snapshots">Snapshots</a>
+      <a href="#/groups">Groups</a>
       <a href="#/profile">Profile</a>
       <a href="#/upload" id="nav-upload" hidden>Admin</a>
     </nav>
@@ -139,6 +140,47 @@
       <div class="toolbar"><a class="button" id="rep-download">Download PDF</a>
         <button class="danger" id="rep-delete" hidden>Delete report</button></div>
       <div id="rep-share"></div>
+      <div class="stack notes-box">
+        <h3>Notes</h3>
+        <ul class="list" id="rep-notes"></ul>
+        <form id="note-form" hidden>
+          <label>Add a note <textarea id="note-body" rows="3" maxlength="1000"></textarea></label>
+          <button type="submit">Post note</button>
+        </form>
+        <p class="muted" id="note-readonly" hidden>You received this report personally, so you can read notes but not write them.</p>
+        <p class="error" id="note-error"></p>
+      </div>
+    </section>
+
+    <!-- Nhóm -->
+    <section id="view-groups" class="view" hidden>
+      <h2>My groups</h2>
+      <ul class="list" id="groups-list"></ul>
+      <form id="group-form" class="stack">
+        <label>New group name <input type="text" id="group-name" maxlength="60"></label>
+        <button type="submit">Create group</button>
+        <p class="error" id="group-error"></p>
+      </form>
+    </section>
+
+    <section id="view-group" class="view" hidden>
+      <a href="#/groups" class="back" id="group-back">← Back to groups</a>
+      <h2 id="grp-name"></h2>
+      <p class="muted" id="grp-meta"></p>
+      <ul class="list" id="grp-members"></ul>
+      <div id="grp-manage" class="stack" hidden>
+        <h3>Add a member</h3>
+        <label>Search by name or email <input type="search" id="grp-search" placeholder="e.g. Hoa or hoa@"></label>
+        <ul class="list" id="grp-results"></ul>
+        <h3>Group settings</h3>
+        <label>Rename <input type="text" id="grp-rename" maxlength="60"></label>
+        <button class="secondary" id="grp-rename-btn">Save name</button>
+        <label>Change Group Owner <select id="grp-owner"></select></label>
+        <button class="secondary" id="grp-owner-btn">Change owner</button>
+        <button class="danger" id="grp-delete">Delete group</button>
+      </div>
+      <div class="toolbar"><button class="danger" id="grp-leave" hidden>Leave group</button></div>
+      <p class="error" id="grp-error"></p>
     </section>
 
     <!-- Cảnh báo và thông báo -->
@@ -195,6 +237,17 @@
         <button type="submit">Upload</button>
       </form>
       <pre id="upload-result" hidden></pre>
+
+      <h2>User accounts</h2>
+      <ul class="list" id="adm-users"></ul>
+      <h2>All groups</h2>
+      <ul class="list" id="adm-groups"></ul>
+      <h2>All notes</h2>
+      <ul class="list" id="adm-notes"></ul>
+      <h2>Activity log</h2>
+      <ul class="list" id="adm-activity"></ul>
+      <h2>Upload history</h2>
+      <ul class="list" id="adm-uploads"></ul>
 
       <h2>Demo tools</h2>
       <p class="muted">For demos only. Replay checks alert rules day by day, as if each day had a refresh.</p>

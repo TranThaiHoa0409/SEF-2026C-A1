@@ -499,6 +499,7 @@ async function renderReport(id) {
   };
   if (r.is_owner) await renderSharePanel("rep-share", "report", Number(id));
   else $("rep-share").replaceChildren();
+  await renderNotes(id);
 }
 
 function fmtKpi(v, unit, name) {
@@ -673,6 +674,7 @@ for (const id of ["set-alert", "set-share"]) {
 
 async function renderAdmin() {
   show("upload");
+  renderAdminLists().catch(showError);
   const m = await api("/api/dev/mailbox");
   $("dev-mail").checked = m.mail_failing; $("dev-pdf").checked = m.pdf_failing;
   $("dev-mailbox").replaceChildren(...(m.items.length ? m.items.slice(0, 30).map((x) => el("li", {},
@@ -688,6 +690,143 @@ $("dev-replay").onclick = async () => {
 };
 $("dev-mail").onchange = () => api("/api/dev/mail-failure", { method: "PUT", json: { failing: $("dev-mail").checked } });
 $("dev-pdf").onchange = () => api("/api/dev/pdf-failure", { method: "PUT", json: { failing: $("dev-pdf").checked } });
+
+// ------------------------------------------------------------------ ghi chú
+
+const emptyItem = (t) => el("li", {}, el("span", { class: "muted" }, t));
+
+async function renderNotes(reportId) {
+  const d = await api(`/api/reports/${reportId}/notes`);
+  $("rep-notes").replaceChildren(...(d.items.length ? d.items.map((n) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, n.author_name), el("span", {}, n.body),
+      el("span", { class: "muted" }, n.created_at + (n.updated_at ? ` · edited ${n.updated_at}` : ""))),
+    el("div", { class: "actions" },
+      n.can_edit ? el("button", { class: "secondary", onclick: async () => {
+        const body = prompt("Edit your note", n.body);
+        if (body === null) return;
+        try { await api(`/api/reports/${reportId}/notes/${n.id}`, { method: "PUT", json: { body } }); renderNotes(reportId); }
+        catch (e) { $("note-error").textContent = e.message; }
+      } }, "Edit") : null,
+      n.can_delete ? el("button", { class: "danger", onclick: async () => {
+        if (!confirm("Delete this note?")) return;
+        await api(`/api/reports/${reportId}/notes/${n.id}`, { method: "DELETE" }); renderNotes(reportId);
+      } }, "Delete") : null)))
+    : [emptyItem("No notes yet.")]));
+  $("note-form").hidden = !d.can_write;
+  $("note-readonly").hidden = d.can_write;
+  $("note-form").onsubmit = async (e) => {
+    e.preventDefault();
+    $("note-error").textContent = "";
+    try {
+      await api(`/api/reports/${reportId}/notes`, { method: "POST", json: { body: $("note-body").value } });
+      $("note-body").value = ""; renderNotes(reportId);
+    } catch (err) { $("note-error").textContent = err.message; }
+  };
+}
+
+// ------------------------------------------------------------------ nhóm
+
+async function renderGroups() {
+  show("groups");
+  const list = await api("/api/groups");
+  $("groups-list").replaceChildren(...(list.length ? list.map((g) => el("li", {},
+    el("a", { href: `#/group/${g.group_id}` }, el("strong", {}, g.name),
+      el("span", { class: "muted" }, `${g.members.length} members · owner ${g.owner_name}` + (g.owner_id === me.id ? " (you)" : "")))))
+    : [emptyItem("You are not in any group yet.")]));
+}
+$("group-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("group-error").textContent = "";
+  try {
+    const g = await api("/api/groups", { method: "POST", json: { name: $("group-name").value } });
+    $("group-name").value = ""; location.hash = `#/group/${g.group_id}`;
+  } catch (err) { $("group-error").textContent = err.message; }
+};
+
+async function renderGroup(id) {
+  const g = await api(`/api/groups/${id}`);
+  show("group");
+  $("group-back").href = me.is_admin && !g.is_member ? "#/upload" : "#/groups";
+  $("group-back").textContent = me.is_admin && !g.is_member ? "← Back to admin" : "← Back to groups";
+  $("grp-error").textContent = "";
+  $("grp-name").textContent = g.name;
+  $("grp-meta").textContent = `Group Owner: ${g.owner_name} · ${g.members.length} members`;
+  const fail = (e) => { $("grp-error").textContent = e.message; };
+  $("grp-members").replaceChildren(...g.members.map((m) => el("li", {},
+    el("div", { class: "body" }, el("span", {}, m.name, el("span", { class: "role" }, m.role)),
+      el("span", { class: "muted" }, m.email || "no email")),
+    g.can_manage && m.role !== "Group Owner" ? el("button", { class: "danger", onclick: async () => {
+      if (!confirm(`Remove ${m.name}? They lose access to everything shared with this group.`)) return;
+      try { await api(`/api/groups/${id}/members/${m.user_id}`, { method: "DELETE" }); renderGroup(id); } catch (e) { fail(e); }
+    } }, "Remove") : null)));
+  $("grp-manage").hidden = !g.can_manage;
+  $("grp-leave").hidden = !g.is_member;
+  if (g.can_manage) {
+    $("grp-rename").value = g.name;
+    $("grp-search").value = ""; $("grp-results").replaceChildren();
+    $("grp-search").oninput = async () => {
+      const q = $("grp-search").value.trim();
+      if (!q) { $("grp-results").replaceChildren(); return; }
+      const users = await api(`/api/groups/${id}/candidates?q=${encodeURIComponent(q)}`);
+      $("grp-results").replaceChildren(...(users.length ? users.map((u) => el("li", {},
+        el("div", { class: "body" }, el("span", {}, u.name), el("span", { class: "muted" }, u.email || "no email")),
+        el("button", { onclick: async () => {
+          try { await api(`/api/groups/${id}/members`, { method: "POST", json: { user_id: u.user_id || u.id } }); toast(`${u.name} added`); renderGroup(id); }
+          catch (e) { fail(e); }
+        } }, "Add"))) : [emptyItem("No matching user.")]));
+    };
+    const others = me.is_admin ? (await api("/api/admin/users")).filter((u) => u.is_active && u.system_role !== "System Administrator")
+      : g.members.map((m) => ({ id: m.user_id, name: m.name }));
+    $("grp-owner").replaceChildren(...others.filter((u) => u.id !== g.owner_id).map((u) => el("option", { value: u.id }, u.name)));
+    $("grp-rename-btn").onclick = async () => {
+      try { await api(`/api/groups/${id}`, { method: "PUT", json: { name: $("grp-rename").value } }); toast("Name saved"); renderGroup(id); } catch (e) { fail(e); }
+    };
+    $("grp-owner-btn").onclick = async () => {
+      if (!$("grp-owner").value) return;
+      try { await api(`/api/groups/${id}/owner`, { method: "PUT", json: { user_id: $("grp-owner").value } }); toast("Group Owner changed"); renderGroup(id); }
+      catch (e) { fail(e); }
+    };
+    $("grp-delete").onclick = async () => {
+      if (!confirm(`Delete "${g.name}"? Reports and snapshots are kept but are no longer shared with this group.`)) return;
+      try { await api(`/api/groups/${id}`, { method: "DELETE" }); location.hash = me.is_admin && !g.is_member ? "#/upload" : "#/groups"; } catch (e) { fail(e); }
+    };
+  }
+  $("grp-leave").onclick = async () => {
+    if (!confirm(`Leave "${g.name}"? You lose access to everything shared with this group.`)) return;
+    try { await api(`/api/groups/${id}/leave`, { method: "POST" }); location.hash = "#/groups"; } catch (e) { fail(e); }
+  };
+}
+
+// ------------------------------------------------------------------ trang Admin
+
+async function renderAdminLists() {
+  const [users, groups, notes, activity, uploads] = await Promise.all([
+    api("/api/admin/users"), api("/api/admin/groups"), api("/api/admin/notes"), api("/api/admin/activity"), api("/api/uploads")]);
+  $("adm-users").replaceChildren(...users.map((u) => el("li", {},
+    el("div", { class: "body" }, el("span", {}, u.name, el("span", { class: "role" }, u.system_role)),
+      el("span", { class: "muted" }, (u.email || "no email") + (u.is_active ? "" : " · deactivated"))),
+    u.is_active && u.id !== me.id ? el("button", { class: "danger", onclick: async () => {
+      if (!confirm(`Deactivate ${u.name}? They are signed out and cannot sign in again.`)) return;
+      await api(`/api/admin/users/${u.id}/deactivate`, { method: "POST" }); renderAdminLists();
+    } }, "Deactivate") : null)));
+  $("adm-groups").replaceChildren(...groups.map((g) => el("li", {},
+    el("a", { href: `#/group/${g.group_id}` }, el("strong", {}, g.name),
+      el("span", { class: "muted" }, `Owner ${g.owner_name} · ${g.members.map((m) => m.name).join(", ")}`)))));
+  $("adm-notes").replaceChildren(...(notes.length ? notes.map((n) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, `${n.author_name} on "${n.report_name}"`), el("span", {}, n.body),
+      el("span", { class: "muted" }, n.created_at)),
+    el("button", { class: "danger", onclick: async () => {
+      if (!confirm("Delete this note?")) return;
+      await api(`/api/reports/${n.report_id}/notes/${n.id}`, { method: "DELETE" }); renderAdminLists();
+    } }, "Delete"))) : [emptyItem("No notes.")]));
+  $("adm-activity").replaceChildren(...(activity.length ? activity.slice(0, 50).map((a) => el("li", {},
+    el("div", { class: "body" }, el("span", {}, `${a.actor_name}: ${a.action.replace(/_/g, " ")}`),
+      el("span", { class: "muted" }, `${a.target} · ${a.created_at}`)))) : [emptyItem("No activity yet.")]));
+  $("adm-uploads").replaceChildren(...(uploads.length ? uploads.map((u) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, u.filename),
+      el("span", { class: "muted" }, `${u.uploaded_at} · ${u.status} · ${u.row_count} rows loaded · ${u.skipped_count} rows skipped`
+        + (u.error_summary ? ` · ${u.error_summary}` : ""))))) : [emptyItem("No uploads yet.")]));
+}
 
 // ------------------------------------------------------------------ upload
 
@@ -713,6 +852,8 @@ async function route() {
     else if (page === "report") await renderReport(id);
     else if (page === "alerts") await renderAlerts();
     else if (page === "profile") await renderProfile();
+    else if (page === "groups") await renderGroups();
+    else if (page === "group") await renderGroup(id);
     else if (page === "snapshots") await renderSnapshots();
     else if (page === "snapshot") await renderSnapshot(id);
     else if (page === "upload" && me.is_admin) await renderAdmin();
