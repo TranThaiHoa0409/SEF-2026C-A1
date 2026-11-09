@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BizBoard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>BizBoard</h1>
+    <div id="who"></div>
+  </header>
+  <main>
+    <section id="signin" hidden>
+      <h2>Sign in with a sample account</h2>
+      <div class="accounts" id="accounts"></div>
+      <p class="error" id="signin-error"></p>
+    </section>
+
+    <section id="home" hidden>
+      <h2 id="period-title"></h2>
+      <p class="muted" id="refresh"></p>
+      <div class="grid" id="kpis"></div>
+
+      <div id="admin" hidden>
+        <h2>Upload orders file</h2>
+        <form id="upload-form">
+          <input type="file" name="file" accept=".csv" required>
+          <button type="submit">Upload</button>
+        </form>
+        <pre id="upload-result" hidden></pre>
+      </div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

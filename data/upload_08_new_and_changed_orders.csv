@@ -1,0 +1,16 @@
+order_id,order_datetime,customer_id,region,city,product_category,product_name,sales_channel,device,payment_method,discount_code,unit_price,quantity,discount_amount,order_value,status
+O12877,2026-11-05 03:50:51,C1042,South,Can Tho,Coffee Beans,Single Origin Sample Pack,Mobile Web,Mobile,Cash on delivery,SAVE10,22.53,3,6.76,60.83,completed
+O12878,2026-11-05 04:13:41,C4044,South,Ho Chi Minh City,Coffee Beans,Single Origin Sample Pack,Mobile Web,Mobile,E-wallet,,22.08,1,0.0,22.08,completed
+O12879,2026-11-05 04:22:47,C1028,Central,Da Nang,Coffee Beans,Arabica Dalat 250g,Website,Mobile,E-wallet,SAVE10,13.94,1,1.39,12.55,completed
+O12880,2026-11-05 05:03:24,C3948,South,Ho Chi Minh City,Merchandise,Cap,Website,Mobile,Card,,14.69,1,0.0,14.69,completed
+O12881,2026-11-05 05:41:42,C1539,South,Ho Chi Minh City,Subscription,Monthly Beans Box,Website,Mobile,Card,,28.98,1,0.0,28.98,completed
+O12882,2026-11-05 07:09:24,C4649,South,Ho Chi Minh City,Coffee Beans,Single Origin Sample Pack,Mobile Web,Mobile,E-wallet,,22.92,1,0.0,22.92,completed
+O12883,2026-11-05 07:13:40,C5862,South,Ho Chi Minh City,Subscription,Monthly Beans Box,Website,Mobile,Bank transfer,,29.04,1,0.0,29.04,completed
+O12884,2026-11-05 07:28:28,C3929,North,Hai Phong,Coffee Beans,Arabica Dalat 250g,Website,Desktop,E-wallet,,13.72,1,0.0,13.72,completed
+O12885,2026-11-05 08:12:13,C5022,North,Hai Phong,Merchandise,Tumbler,Mobile Web,Tablet,Bank transfer,,24.49,2,0.0,48.98,completed
+O12694,2026-11-05 08:18:09,C2087,South,Can Tho,Subscription,Monthly Beans Box,Mobile Web,Mobile,Bank transfer,,29.37,1,0.0,29.37,refunded
+O12886,2026-11-05 08:33:23,C5866,South,Can Tho,Equipment,Cold Brew Kit,Mobile Web,Desktop,Cash on delivery,,57.51,1,0.0,57.51,completed
+O12887,2026-11-05 08:51:06,C4991,South,Can Tho,Merchandise,Tumbler,Website,Mobile,Card,,23.16,3,0.0,69.48,completed
+O12888,2026-11-05 08:57:49,C0038,South,Ho Chi Minh City,Merchandise,Tote Bag,Website,Mobile,Cash on delivery,,9.35,2,0.0,18.7,completed
+O12681,2026-11-05 12:34:22,C5344,South,Ho Chi Minh City,Merchandise,Cap,Mobile Web,Mobile,Cash on delivery,SAVE10,14.63,1,1.46,13.17,refunded
+O12686,2026-11-05 18:08:51,C5686,North,Hai Phong,Coffee Beans,Arabica Dalat 250g,Marketplace,Desktop,E-wallet,,15.8,1,0.0,15.8,refunded

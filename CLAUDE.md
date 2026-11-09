@@ -30,6 +30,7 @@ Prototype web app cho Assignment 1 (SEF). Mục đích: kiểm chứng yêu cầ
 - `order_id` lặp trong cùng một file (`upload_04`): giữ dòng cuối.
 - Ghi đè theo `order_id`: đơn trùng trong DB được thay bằng bản trong file, đơn mới được thêm, các đơn khác giữ nguyên.
 - Upload hợp lệ làm dữ liệu refresh ngay.
+- `upload_01` trùng y hệt dữ liệu có sẵn nên số liệu không đổi. `upload_08` (12 đơn mới, 3 đơn đổi sang `refunded`) là file để thấy dashboard đổi: ngày 5 Nov 79 đơn $2,985.05 → 88 đơn $3,326.19.
 
 ## Quy tắc khác đã chốt
 - Dữ liệu refresh mỗi 5 phút. Alert chỉ tạo khi KPI vừa cắt ngưỡng, không tạo lại khi vẫn đang vượt. Email giả (bảng `mailbox`) trong 1 phút, lỗi thì thử lại 3 lần cách nhau 1 phút.

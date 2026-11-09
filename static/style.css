@@ -1,0 +1,28 @@
+:root {
+  --bg: #f6f7f5; --card: #fff; --text: #1d2320; --muted: #5d6762;
+  --line: #dde2de; --accent: #1f6f4a; --warn: #9a3412; --nodata: #6b7280;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+header { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 18px; margin: 0; }
+main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+h2 { font-size: 17px; margin: 24px 0 8px; }
+button, select, input[type=file] { min-height: 44px; min-width: 44px; font: inherit; }
+button { padding: 0 16px; border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--accent); color: #fff; cursor: pointer; }
+button.secondary { background: transparent; color: var(--accent); }
+.accounts { display: grid; gap: 8px; }
+.accounts button { text-align: left; background: var(--card); color: var(--text); border-color: var(--line); }
+.accounts button[disabled] { color: var(--nodata); cursor: not-allowed; }
+.muted { color: var(--muted); font-size: 14px; }
+.grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 600px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.card .name { font-size: 14px; color: var(--muted); }
+.card .value { font-size: 26px; font-weight: 600; }
+.card.no_data .value, .card.not_applicable .value { font-size: 15px; font-weight: 400; color: var(--nodata); }
+.error { color: var(--warn); }
+pre { white-space: pre-wrap; background: var(--card); border: 1px solid var(--line); padding: 12px; border-radius: 8px; font-size: 13px; }
