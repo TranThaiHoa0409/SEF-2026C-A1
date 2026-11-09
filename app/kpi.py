@@ -59,7 +59,11 @@ PERIOD_LABELS = {
     "last_7_days": "Last 7 days",
     "last_30_days": "Last 30 days",
     "this_month": "This month",
+    "last_3_months": "Last 3 months",
 }
+# Dashboard và báo cáo dùng 4 kỳ đầu; trend view có thêm Last 3 months.
+DASHBOARD_PERIODS = ["today", "last_7_days", "last_30_days", "this_month"]
+TREND_PERIODS = DASHBOARD_PERIODS + ["last_3_months"]
 
 
 @dataclass(frozen=True)
@@ -110,6 +114,8 @@ def resolve_period(key: str, today: date = config.TODAY) -> Period:
         return Period(today - timedelta(days=30), today - timedelta(days=1), key)
     if key == "this_month":
         return Period(today.replace(day=1), today, key)
+    if key == "last_3_months":   # 13 tuần trọn vẹn, kết thúc hôm qua (9 Aug to 7 Nov)
+        return Period(today - timedelta(days=91), today - timedelta(days=1), key)
     raise ValueError(f"Unknown period '{key}'")
 
 
@@ -384,4 +390,81 @@ def series(conn: sqlite3.Connection, name: str, period: Period, flt: Optional[Fi
     if all(p["value"] is None for p in out["points"]):
         out["status"] = "no_data"
         out["message"] = no_data_message(period, flt)
+    return out
+
+
+# ------------------------------------------------------------------ drill-down
+
+ORDER_RECORD_COLUMNS = ["order_id", "order_datetime", "customer_id", "region", "city", "product_category",
+                        "product_name", "sales_channel", "device", "payment_method", "discount_code",
+                        "quantity", "order_value", "status"]
+
+
+def parse_span(start: str, end: str) -> tuple[datetime, datetime]:
+    """Khoảng của một điểm trên biểu đồ, 'YYYY-MM-DD HH:MM:SS', end không tính."""
+    lo, hi = datetime.strptime(start, DT), datetime.strptime(end, DT)
+    if hi <= lo:
+        raise ValueError("The end of the point is before its start.")
+    return lo, hi
+
+
+def records(conn: sqlite3.Connection, name: str, lo: datetime, hi: datetime,
+            flt: Optional[Filter] = None) -> dict:
+    """Các bản ghi tạo nên một điểm trên biểu đồ, kèm giá trị của điểm (cùng hàm với biểu đồ).
+
+    Đơn hàng liệt kê mọi trạng thái (cột status) để thấy vì sao số đơn trong danh sách
+    có thể nhiều hơn Total Sales; chỉ đơn completed được tính vào giá trị.
+    """
+    kdef = KPI_BY_NAME.get(name)
+    if name not in SERIES_KPIS:
+        raise ValueError(f"{name} has no drill-down.")
+    out = {"kpi": name, "unit": kdef.unit, "start": lo.strftime(DT), "end": hi.strftime(DT),
+           "value": None, "status": "ok", "message": None, "columns": [], "rows": []}
+    if flt and flt.column not in FILTER_SUPPORT[kdef.source]:
+        out["status"] = "not_applicable"
+        out["message"] = f"The filter {flt.label} does not apply to {name}."
+        return out
+    if name == "New Customers":   # chỉ có ngày đăng ký: lấy theo ngày
+        lo = datetime.combine(lo.date(), datetime.min.time())
+    out["value"] = _point_value(conn, name, lo, hi, flt)
+    span = [lo.strftime(DT), hi.strftime(DT)]
+    extra, args = "", []
+    if flt:
+        extra, args = f" AND {flt.column} = ?", [flt.value]
+
+    if kdef.source == "orders":
+        out["columns"] = ORDER_RECORD_COLUMNS
+        sql = (f"SELECT {', '.join(ORDER_RECORD_COLUMNS)} FROM orders"
+               f" WHERE order_datetime >= ? AND order_datetime < ?{extra} ORDER BY order_datetime")
+    elif kdef.source == "customers":
+        out["columns"] = ["customer_id", "full_name", "signup_date", "region", "city", "segment",
+                          "acquisition_source"]
+        span = [lo.date().isoformat(), hi.date().isoformat()]
+        sql = (f"SELECT {', '.join(out['columns'])} FROM customers"
+               f" WHERE signup_date >= ? AND signup_date < ?{extra} ORDER BY signup_date, customer_id")
+    else:
+        out["columns"] = ["session_id", "session_datetime", "user_id", "platform", "duration_seconds",
+                          "pages_viewed", "converted"]
+        if flt:
+            extra = f" AND user_id IN (SELECT customer_id FROM customers WHERE {flt.column} = ?)"
+        sql = (f"SELECT {', '.join(out['columns'])} FROM app_sessions"
+               f" WHERE session_datetime >= ? AND session_datetime < ?{extra} ORDER BY session_datetime")
+    out["rows"] = [dict(r) for r in conn.execute(sql, span + args)]
+    if not out["rows"]:
+        out["status"] = "no_data"
+        out["message"] = f"No records for {format_range(lo.date(), (hi - timedelta(seconds=1)).date())}" + (
+            f" with filter {flt.label}." if flt else ".")
+    return out
+
+
+def filter_values(conn: sqlite3.Connection) -> list[dict]:
+    """Danh mục bộ lọc và các giá trị có thật trong dữ liệu."""
+    out = []
+    for col in FILTER_COLUMNS:
+        sql = f"SELECT DISTINCT {col} FROM orders"
+        if col in FILTER_SUPPORT["customers"]:
+            sql += f" UNION SELECT DISTINCT {col} FROM customers"
+        values = sorted(r[0] for r in conn.execute(sql) if r[0])
+        applies = [k.name for k in KPIS if col in FILTER_SUPPORT[k.source]]
+        out.append({"column": col, "label": FILTER_LABELS[col], "values": values, "applies_to": applies})
     return out

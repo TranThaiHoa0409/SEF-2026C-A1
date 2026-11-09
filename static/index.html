@@ -13,6 +13,7 @@
     <h1>BizBoard</h1>
     <nav id="nav" hidden>
       <a href="#/dashboard">Dashboard</a>
+      <a href="#/analytics">Analytics</a>
       <a href="#/snapshots">Snapshots</a>
       <a href="#/upload" id="nav-upload" hidden>Upload</a>
     </nav>
@@ -41,6 +42,55 @@
       <div id="skipped"></div>
       <div class="grid" id="widgets"></div>
       <p class="toast" id="toast" hidden></p>
+    </section>
+
+    <!-- Analytics -->
+    <section id="view-analytics" class="view" hidden>
+      <div class="tabs" role="group" aria-label="Analytics view">
+        <button id="tab-trend" aria-pressed="true">Trend</button>
+        <button id="tab-compare" aria-pressed="false">Compare periods</button>
+      </div>
+
+      <div class="filterbar">
+        <label>Filter
+          <select id="filter-column" aria-label="Filter category"><option value="">No filter</option></select>
+        </label>
+        <label id="filter-value-wrap" hidden>Value
+          <select id="filter-value" aria-label="Filter value"></select>
+        </label>
+      </div>
+      <p class="chip" id="filter-chip" hidden><span id="filter-chip-text"></span>
+        <button id="filter-clear" class="secondary">Clear filter</button></p>
+
+      <div id="panel-trend">
+        <label>KPI <select id="trend-kpi"></select></label>
+        <div class="periods" id="trend-periods" role="group" aria-label="Trend period"></div>
+        <h2 id="trend-title"></h2>
+        <p class="muted" id="trend-sub"></p>
+        <div id="trend-nodata" class="nodata-box" hidden>
+          <p id="trend-nodata-text"></p>
+          <button id="nodata-period" class="secondary">Change period</button>
+          <button id="nodata-clear" class="secondary">Clear filter</button>
+        </div>
+        <div class="card chart-box" id="trend-chart-box"><canvas id="trend-chart" role="img" aria-label="Trend chart"></canvas></div>
+        <p class="muted hint">Tap a point to see the records behind it.</p>
+      </div>
+
+      <div id="panel-compare" hidden>
+        <form id="compare-form" class="compare-form">
+          <label>Length
+            <select id="cmp-length"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+          </label>
+          <label>Period A starts <input type="date" id="cmp-a" value="2026-11-01" required></label>
+          <span class="muted" id="cmp-a-end"></span>
+          <label>Period B starts <input type="date" id="cmp-b" value="2026-09-15" required></label>
+          <span class="muted" id="cmp-b-end"></span>
+          <button type="submit">Compare</button>
+        </form>
+        <p class="error" id="cmp-error"></p>
+        <div id="cmp-notices"></div>
+        <div class="cmp-grid" id="cmp-result"></div>
+      </div>
     </section>
 
     <!-- Danh sách snapshot -->
@@ -90,6 +140,15 @@
         <button type="submit" id="catalogue-save">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Drill-down -->
+  <dialog id="drill">
+    <h2 id="drill-title"></h2>
+    <p class="muted" id="drill-meta"></p>
+    <p id="drill-summary"></p>
+    <div id="drill-list" class="records"></div>
+    <div class="dialog-actions"><button id="drill-back">Back to chart</button></div>
   </dialog>
 
   <script src="/static/app.js"></script>

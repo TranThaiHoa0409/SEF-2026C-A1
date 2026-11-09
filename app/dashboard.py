@@ -40,7 +40,7 @@ WIDGETS = {w.id: w for w in CATALOGUE}
 DEFAULT_WIDGETS = ["total_revenue.summary", "total_sales.summary",
                    "new_customers.summary", "active_users.summary"]
 DEFAULT_PERIOD = "last_7_days"
-PERIOD_KEYS = list(kpi.PERIOD_LABELS)
+PERIOD_KEYS = kpi.DASHBOARD_PERIODS
 
 
 # ------------------------------------------------------------------ tùy chọn
