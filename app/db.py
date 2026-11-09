@@ -118,17 +118,21 @@ CREATE TABLE IF NOT EXISTS reports (
     kpis_json TEXT NOT NULL,
     period_start TEXT NOT NULL,
     period_end TEXT NOT NULL,
+    period_label TEXT NOT NULL,
     generated_at TEXT NOT NULL,
-    pdf_path TEXT
+    pdf_path TEXT,
+    schedule_id INTEGER
 );
 CREATE TABLE IF NOT EXISTS report_schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_id TEXT NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
     kpis_json TEXT NOT NULL,
     period_key TEXT NOT NULL,
     frequency TEXT NOT NULL,
     next_run TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1
+    active INTEGER NOT NULL DEFAULT 1,
+    last_error TEXT
 );
 CREATE TABLE IF NOT EXISTS shares (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,14 +161,20 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     is_active INTEGER NOT NULL,
     is_triggered INTEGER NOT NULL DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS alerts (
+-- Danh sách thông báo trong app: cảnh báo (kind = alert), chia sẻ (share), báo cáo định kỳ (report).
+CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    rule_id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id),
-    kpi TEXT NOT NULL,
-    condition TEXT NOT NULL,
-    threshold REAL NOT NULL,
-    value REAL NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    rule_id TEXT,
+    kpi TEXT,
+    condition TEXT,
+    threshold REAL,
+    value REAL,
+    data_date TEXT,
+    link TEXT,
     created_at TEXT NOT NULL,
     is_read INTEGER NOT NULL DEFAULT 0,
     email_status TEXT
@@ -174,13 +184,19 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     email_on_alert INTEGER NOT NULL DEFAULT 1,
     email_on_share INTEGER NOT NULL DEFAULT 1
 );
+-- Hộp thư giả thay cho email thật.
 CREATE TABLE IF NOT EXISTS mailbox (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id INTEGER REFERENCES notifications(id),
     to_user_id TEXT NOT NULL REFERENCES users(id),
+    to_email TEXT NOT NULL,
     subject TEXT NOT NULL,
     body TEXT NOT NULL,
     attempt INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL,
+    queued_at TEXT NOT NULL,
+    next_attempt_at TEXT NOT NULL,
+    attempts_json TEXT NOT NULL DEFAULT '[]',
     sent_at TEXT
 );
 CREATE TABLE IF NOT EXISTS activity_log (
@@ -214,11 +230,26 @@ def get_conn():
         conn.close()
 
 
+# Bảng đã đổi cấu trúc từ bước 4. Bảng cũ còn trống thì tạo lại; còn dữ liệu thì báo lỗi rõ.
+_REBUILD = {"reports": "period_label", "report_schedules": "last_error", "mailbox": "next_attempt_at"}
+
+
+def _upgrade(conn: sqlite3.Connection) -> None:
+    conn.execute("DROP TABLE IF EXISTS alerts")   # thay bằng notifications, chưa từng có dữ liệu
+    for table, column in _REBUILD.items():
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+        if cols and column not in cols:
+            if conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]:
+                raise RuntimeError(f"Table {table} is outdated. Delete {config.db_path()} and start again.")
+            conn.execute(f"DROP TABLE {table}")
+
+
 def init_db() -> None:
     """Tạo bảng và nạp CSV mẫu nếu DB còn trống."""
     from . import importer
 
     with get_conn() as conn:
+        _upgrade(conn)
         conn.executescript(SCHEMA)
         if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
             importer.load_seed(conn)

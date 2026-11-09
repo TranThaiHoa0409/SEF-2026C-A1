@@ -36,6 +36,25 @@ def last_refresh() -> Optional[dict]:
     return dict(row) if row else None
 
 
+def send_mail() -> None:
+    from . import notify
+    with db.get_conn() as conn:
+        notify.process_mailbox(conn)
+
+
+def run_schedules() -> None:
+    from . import reports
+    reports.run_due_schedules()
+
+
+def _check_alerts(conn) -> None:
+    from . import alerts
+    alerts.check_rules(conn)
+
+
+AFTER_REFRESH.append(_check_alerts)
+
+
 def start() -> None:
     global _scheduler
     if _scheduler is not None:
@@ -43,6 +62,8 @@ def start() -> None:
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(refresh, "interval", minutes=config.REFRESH_INTERVAL_MINUTES,
                        id="refresh", next_run_time=datetime.now())
+    _scheduler.add_job(send_mail, "interval", seconds=config.MAIL_POLL_SECONDS, id="mail")
+    _scheduler.add_job(run_schedules, "interval", seconds=config.SCHEDULE_POLL_SECONDS, id="schedules")
     _scheduler.start()
 
 

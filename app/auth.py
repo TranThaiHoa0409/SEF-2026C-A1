@@ -85,11 +85,17 @@ def can(user: dict, action: str, item: Optional[dict] = None) -> bool:
     """Một chỗ duy nhất quyết định quyền. Các bước sau thêm action mới vào đây."""
     if action in ("upload_data", "view_upload_history"):
         return user["is_admin"]
-    if action == "view_snapshot":
-        return item is not None and (item["owner_id"] == user["id"]
-                                     or is_shared_with("snapshot", item["id"], user["id"]))
-    if action == "delete_snapshot":
-        return item is not None and item["owner_id"] == user["id"]
+    if action == "dev_tools":
+        return user["is_admin"]
+    if item is None:
+        return False
+    if action in ("view_snapshot", "view_report"):
+        kind = action.removeprefix("view_")
+        return item["owner_id"] == user["id"] or is_shared_with(kind, item["id"], user["id"])
+    if action in ("delete_snapshot", "share_snapshot", "delete_report", "share_report",
+                  "manage_schedule", "manage_rule"):
+        key = "user_id" if action == "manage_rule" else "owner_id"
+        return item[key] == user["id"]
     return False
 
 

@@ -14,8 +14,11 @@
     <nav id="nav" hidden>
       <a href="#/dashboard">Dashboard</a>
       <a href="#/analytics">Analytics</a>
+      <a href="#/reports">Reports</a>
+      <a href="#/alerts">Alerts <span class="count" id="unread" hidden></span></a>
       <a href="#/snapshots">Snapshots</a>
-      <a href="#/upload" id="nav-upload" hidden>Upload</a>
+      <a href="#/profile">Profile</a>
+      <a href="#/upload" id="nav-upload" hidden>Admin</a>
     </nav>
     <div id="who"></div>
   </header>
@@ -93,6 +96,80 @@
       </div>
     </section>
 
+    <!-- Báo cáo -->
+    <section id="view-reports" class="view" hidden>
+      <h2>New report</h2>
+      <form id="report-form" class="stack">
+        <fieldset><legend>KPIs</legend><div class="checks" id="report-kpis"></div></fieldset>
+        <label>Period <select id="report-period"></select></label>
+        <label>Name (optional) <input type="text" id="report-name" placeholder="Default: KPI names and period"></label>
+        <button type="submit">Generate PDF</button>
+        <p class="error" id="report-error"></p>
+      </form>
+      <h2>My reports</h2>
+      <ul class="list" id="reports-mine"></ul>
+      <h2>Shared with me</h2>
+      <ul class="list" id="reports-shared"></ul>
+
+      <h2>Scheduled reports</h2>
+      <ul class="list" id="schedules"></ul>
+      <form id="schedule-form" class="stack">
+        <h3 id="schedule-form-title">New schedule</h3>
+        <fieldset><legend>KPIs</legend><div class="checks" id="schedule-kpis"></div></fieldset>
+        <label>Period <select id="schedule-period"></select></label>
+        <label>How often
+          <select id="schedule-frequency"><option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="monthly">Monthly</option></select>
+        </label>
+        <label>First run <input type="datetime-local" id="schedule-first" required></label>
+        <label>Name (optional) <input type="text" id="schedule-name"></label>
+        <div class="toolbar">
+          <button type="submit">Save schedule</button>
+          <button type="button" class="secondary" id="schedule-cancel-edit" hidden>Stop editing</button>
+        </div>
+        <p class="error" id="schedule-error"></p>
+      </form>
+    </section>
+
+    <!-- Một báo cáo -->
+    <section id="view-report" class="view" hidden>
+      <a href="#/reports" class="back">← Back to reports</a>
+      <h2 id="rep-name"></h2>
+      <p class="muted" id="rep-meta"></p>
+      <table class="kpi-table"><tbody id="rep-kpis"></tbody></table>
+      <div class="toolbar"><a class="button" id="rep-download">Download PDF</a>
+        <button class="danger" id="rep-delete" hidden>Delete report</button></div>
+      <div id="rep-share"></div>
+    </section>
+
+    <!-- Cảnh báo và thông báo -->
+    <section id="view-alerts" class="view" hidden>
+      <h2>Notifications</h2>
+      <ul class="list" id="notifications"></ul>
+      <h2>My alert rules</h2>
+      <ul class="list" id="rules"></ul>
+      <form id="rule-form" class="stack">
+        <h3 id="rule-form-title">New rule</h3>
+        <label>KPI <select id="rule-kpi"></select></label>
+        <label>Condition <select id="rule-condition"><option value="below">goes below</option><option value="above">goes above</option></select></label>
+        <label><span id="rule-threshold-label">Number</span> <input type="text" inputmode="decimal" id="rule-threshold"></label>
+        <p class="muted">Rules check each day's value after every data refresh.</p>
+        <div class="toolbar">
+          <button type="submit">Save rule</button>
+          <button type="button" class="secondary" id="rule-cancel-edit" hidden>Stop editing</button>
+        </div>
+        <p class="error" id="rule-error"></p>
+      </form>
+    </section>
+
+    <!-- Hồ sơ -->
+    <section id="view-profile" class="view" hidden>
+      <h2>Email notifications</h2>
+      <p class="muted" id="profile-email"></p>
+      <label class="switch"><input type="checkbox" id="set-alert"> Email me when an alert is triggered</label>
+      <label class="switch"><input type="checkbox" id="set-share"> Email me when a report is shared with me</label>
+      <p class="muted">In-app notifications are always on.</p>
+    </section>
+
     <!-- Danh sách snapshot -->
     <section id="view-snapshots" class="view" hidden>
       <h2>My snapshots</h2>
@@ -107,6 +184,7 @@
       <h2 id="snap-name"></h2>
       <p class="muted" id="snap-meta"></p>
       <div class="grid" id="snap-widgets"></div>
+      <div id="snap-share"></div>
     </section>
 
     <!-- Upload (Admin) -->
@@ -117,6 +195,17 @@
         <button type="submit">Upload</button>
       </form>
       <pre id="upload-result" hidden></pre>
+
+      <h2>Demo tools</h2>
+      <p class="muted">For demos only. Replay checks alert rules day by day, as if each day had a refresh.</p>
+      <div class="toolbar">
+        <button id="dev-replay" class="secondary">Replay alerts 1 to 7 Nov</button>
+        <label class="switch"><input type="checkbox" id="dev-mail"> Simulate mail server failure</label>
+        <label class="switch"><input type="checkbox" id="dev-pdf"> Simulate PDF failure</label>
+      </div>
+      <pre id="dev-result" hidden></pre>
+      <h2>Fake mailbox</h2>
+      <ul class="list" id="dev-mailbox"></ul>
     </section>
 
     <section id="view-error" class="view" hidden>
@@ -140,6 +229,17 @@
         <button type="submit" id="catalogue-save">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Xác nhận khi một số KPI không có dữ liệu -->
+  <dialog id="confirm-skip">
+    <h2>Some KPIs have no data</h2>
+    <p id="confirm-skip-text"></p>
+    <ul id="confirm-skip-list"></ul>
+    <div class="dialog-actions">
+      <button class="secondary" id="confirm-skip-cancel">Cancel</button>
+      <button id="confirm-skip-ok">Generate without them</button>
+    </div>
   </dialog>
 
   <!-- Drill-down -->

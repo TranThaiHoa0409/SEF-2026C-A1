@@ -21,3 +21,21 @@ def db_path() -> Path:
 
 def scheduler_enabled() -> bool:
     return os.environ.get("BIZBOARD_NO_SCHEDULER") != "1"
+
+
+# Cảnh báo xét giá trị KPI của ngày đầy đủ gần nhất (hôm qua = 7 Nov).
+ALERT_DAY_OFFSET = 1
+
+# Email giả: lần gửi đầu ngay khi đến lượt (job chạy mỗi MAIL_POLL_SECONDS, dưới 1 phút),
+# lỗi thì thử lại MAIL_RETRIES lần, cách nhau MAIL_RETRY_SECONDS.
+MAIL_POLL_SECONDS = 10
+MAIL_RETRIES = 3
+MAIL_RETRY_SECONDS = 60
+SCHEDULE_POLL_SECONDS = 30
+
+
+def reports_dir() -> Path:
+    """Thư mục chứa file PDF; test đổi bằng BIZBOARD_REPORTS."""
+    path = Path(os.environ.get("BIZBOARD_REPORTS", ROOT / "reports"))
+    path.mkdir(parents=True, exist_ok=True)
+    return path

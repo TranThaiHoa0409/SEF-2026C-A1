@@ -238,6 +238,8 @@ async function renderSnapshot(id) {
   $("snap-meta").textContent = `${s.data.period.label}: ${s.data.period.dates_text} · captured ${s.captured_at}${owner}`;
   clearCharts();
   $("snap-widgets").replaceChildren(...s.data.widgets.map((w) => renderWidget(w)));
+  if (s.can_delete) await renderSharePanel("snap-share", "snapshot", Number(id));
+  else $("snap-share").replaceChildren();
 }
 
 // ------------------------------------------------------------------ analytics
@@ -425,6 +427,268 @@ async function runCompare() {
   }));
 }
 
+// ------------------------------------------------------------------ báo cáo
+
+const KPI_UNITS = {
+  "Total Sales": "count", "Average Order Value": "money", "Total Revenue": "money", "Revenue Growth": "percent",
+  "New Customers": "count", "Customer Retention Rate": "percent", "Active Users": "count", "Conversion Rate": "percent",
+};
+const KPI_LIST = Object.keys(KPI_UNITS);
+
+function kpiChecks(containerId, selected = []) {
+  $(containerId).replaceChildren(...KPI_LIST.map((k) => el("label", { class: "option" },
+    el("input", { type: "checkbox", value: k, ...(selected.includes(k) ? { checked: "" } : {}) }), el("span", {}, k))));
+}
+function checkedKpis(containerId) { return [...$(containerId).querySelectorAll("input:checked")].map((i) => i.value); }
+function periodOptions(selectId, value = "last_7_days") {
+  $(selectId).replaceChildren(...PERIODS.map(([k, l]) => el("option", { value: k, ...(k === value ? { selected: "" } : {}) }, l)));
+}
+
+function reportItem(r, mine) {
+  return el("li", {},
+    el("a", { href: `#/report/${r.id}` }, el("strong", {}, r.name),
+      el("span", { class: "muted" }, `${r.period_label}: ${r.dates_text} · generated ${r.generated_at}` + (mine ? "" : ` · from ${r.owner_name}`))));
+}
+
+async function renderReports() {
+  show("reports");
+  if (!$("report-kpis").children.length) {
+    kpiChecks("report-kpis"); periodOptions("report-period");
+    kpiChecks("schedule-kpis"); periodOptions("schedule-period");
+  }
+  const d = await api("/api/reports");
+  const empty = (t) => el("li", {}, el("span", { class: "muted" }, t));
+  $("reports-mine").replaceChildren(...(d.mine.length ? d.mine.map((r) => reportItem(r, true)) : [empty("No reports yet.")]));
+  $("reports-shared").replaceChildren(...(d.shared_with_me.length ? d.shared_with_me.map((r) => reportItem(r, false))
+    : [empty("Nothing has been shared with you.")]));
+  await renderSchedules();
+}
+
+async function submitReport(confirmSkip = false) {
+  $("report-error").textContent = "";
+  const body = { kpis: checkedKpis("report-kpis"), period_key: $("report-period").value,
+    name: $("report-name").value, confirm_skip: confirmSkip };
+  const res = await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (res.status === 409) {
+    $("confirm-skip-text").textContent = "These KPIs have no data for the chosen period. Generate the report without them?";
+    $("confirm-skip-list").replaceChildren(...data.missing.map((m) => el("li", {}, m)));
+    $("confirm-skip").showModal();
+    return;
+  }
+  if (!res.ok) { $("report-error").textContent = data.detail; return; }
+  toast(`Report "${data.name}" created`);
+  $("report-name").value = "";
+  location.hash = `#/report/${data.id}`;
+}
+$("report-form").onsubmit = (e) => { e.preventDefault(); submitReport(false); };
+$("confirm-skip-ok").onclick = () => { $("confirm-skip").close(); submitReport(true); };
+$("confirm-skip-cancel").onclick = () => $("confirm-skip").close();   // không tạo gì, quay lại màn chọn
+
+async function renderReport(id) {
+  const r = await api(`/api/reports/${id}`);
+  show("report");
+  $("rep-name").textContent = r.name;
+  $("rep-meta").textContent = `${r.period.label}: ${r.period.dates_text} · generated ${r.generated_at}` + (r.is_owner ? "" : ` · shared by ${r.owner_name}`);
+  $("rep-kpis").replaceChildren(...r.kpis.map((k) => el("tr", {}, el("td", {}, k.name), el("td", {}, fmtKpi(k.value, k.unit, k.name)))));
+  $("rep-download").href = `/api/reports/${id}/pdf`;
+  $("rep-delete").hidden = !r.is_owner;
+  $("rep-delete").onclick = async () => {
+    if (!confirm(`Delete "${r.name}"? Everyone it was shared with loses access.`)) return;
+    await api(`/api/reports/${id}`, { method: "DELETE" }); location.hash = "#/reports";
+  };
+  if (r.is_owner) await renderSharePanel("rep-share", "report", Number(id));
+  else $("rep-share").replaceChildren();
+}
+
+function fmtKpi(v, unit, name) {
+  const t = fmt(v, unit);
+  return name === "Revenue Growth" && v > 0 ? "+" + t : t;
+}
+
+// Lịch định kỳ
+let editingSchedule = null;
+function resetScheduleForm() {
+  editingSchedule = null;
+  $("schedule-form-title").textContent = "New schedule";
+  $("schedule-cancel-edit").hidden = true;
+  kpiChecks("schedule-kpis"); periodOptions("schedule-period");
+  $("schedule-frequency").value = "weekly"; $("schedule-first").value = ""; $("schedule-name").value = "";
+}
+async function renderSchedules() {
+  const list = await api("/api/schedules");
+  $("schedules").replaceChildren(...(list.length ? list.map((s) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, s.name),
+      el("span", { class: "muted" }, `${s.frequency} · ${s.period_label} · next run ${s.next_run}` + (s.active ? "" : " · paused")),
+      s.last_error ? el("span", { class: "muted error" }, `Last run failed: ${s.last_error}`) : null),
+    el("div", { class: "actions" },
+      el("button", { class: "secondary", onclick: () => {
+        editingSchedule = s;
+        $("schedule-form-title").textContent = `Edit: ${s.name}`; $("schedule-cancel-edit").hidden = false;
+        kpiChecks("schedule-kpis", s.kpis); periodOptions("schedule-period", s.period_key);
+        $("schedule-frequency").value = s.frequency; $("schedule-first").value = s.next_run.slice(0, 16).replace(" ", "T");
+        $("schedule-name").value = s.name; $("schedule-form").scrollIntoView();
+      } }, "Edit"),
+      el("button", { class: "danger", onclick: async () => {
+        if (!confirm(`Cancel the schedule "${s.name}"? Reports already created stay in your list.`)) return;
+        await api(`/api/schedules/${s.id}`, { method: "DELETE" }); renderSchedules();
+      } }, "Cancel schedule"))))
+    : [el("li", {}, el("span", { class: "muted" }, "No scheduled reports."))]));
+}
+$("schedule-cancel-edit").onclick = resetScheduleForm;
+$("schedule-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("schedule-error").textContent = "";
+  const body = { kpis: checkedKpis("schedule-kpis"), period_key: $("schedule-period").value,
+    frequency: $("schedule-frequency").value, first_run: $("schedule-first").value, name: $("schedule-name").value, active: true };
+  try {
+    if (editingSchedule) await api(`/api/schedules/${editingSchedule.id}`, { method: "PUT", json: body });
+    else await api("/api/schedules", { method: "POST", json: body });
+    toast("Schedule saved"); resetScheduleForm(); renderSchedules();
+  } catch (err) { $("schedule-error").textContent = err.message; }
+};
+
+// ------------------------------------------------------------------ chia sẻ (báo cáo và snapshot)
+
+async function renderSharePanel(containerId, itemType, itemId) {
+  const [targets, current] = await Promise.all([api("/api/share-targets"), api(`/api/shares?item_type=${itemType}&item_id=${itemId}`)]);
+  const select = el("select", { "aria-label": "Share with" },
+    el("option", { value: "" }, "Choose a person or group"),
+    el("optgroup", { label: "People" }, ...targets.users.map((u) => el("option", { value: `user:${u.id}` }, u.name))),
+    targets.groups.length
+      ? el("optgroup", { label: "My groups" }, ...targets.groups.map((g) => el("option", { value: `group:${g.group_id}` }, g.name)))
+      : null);
+  const msg = el("p", { class: "error" });
+  const btn = el("button", { onclick: async () => {
+    if (!select.value) return;
+    const [target_type, target_id] = select.value.split(":");
+    try {
+      await api("/api/shares", { method: "POST", json: { item_type: itemType, item_id: itemId, target_type, target_id } });
+      toast("Shared"); renderSharePanel(containerId, itemType, itemId);
+    } catch (e) { msg.textContent = e.message; }
+  } }, "Share");
+  const note = targets.groups.length ? null
+    : el("p", { class: "muted" }, "You are not in any group, so you can share with people only.");
+  const viewOnly = itemType === "snapshot" ? "Recipients can only view it." : "Recipients can open and download it, not edit or re-share.";
+  $(containerId).replaceChildren(el("div", { class: "share-box stack" },
+    el("h3", {}, "Sharing"), el("p", { class: "muted" }, viewOnly), note,
+    el("div", { class: "share-row" }, el("label", {}, "Share with", select), btn), msg,
+    el("ul", { class: "list" }, ...(current.length ? current.map((s) => el("li", {},
+      el("div", { class: "body" }, `${s.target_name}`, el("span", { class: "muted" }, `${s.target_type === "group" ? "Group" : "Person"} · since ${s.created_at}`)),
+      el("button", { class: "danger", onclick: async () => {
+        await api(`/api/shares/${s.id}`, { method: "DELETE" }); toast("Sharing stopped"); renderSharePanel(containerId, itemType, itemId);
+      } }, "Stop sharing")))
+      : [el("li", {}, el("span", { class: "muted" }, "Not shared with anyone."))]))));
+}
+
+// ------------------------------------------------------------------ cảnh báo và thông báo
+
+let editingRule = null;
+function ruleThresholdHint() {
+  const unit = KPI_UNITS[$("rule-kpi").value];
+  $("rule-threshold-label").textContent = unit === "percent" ? "Number (%)" : unit === "money" ? "Number ($)" : "Number";
+}
+function resetRuleForm() {
+  editingRule = null;
+  $("rule-form-title").textContent = "New rule"; $("rule-cancel-edit").hidden = true;
+  $("rule-kpi").value = KPI_LIST[0]; $("rule-condition").value = "below"; $("rule-threshold").value = "";
+  ruleThresholdHint();
+}
+
+async function renderAlerts() {
+  show("alerts");
+  if (!$("rule-kpi").options.length) {
+    $("rule-kpi").append(...KPI_LIST.map((k) => el("option", { value: k }, k)));
+    $("rule-kpi").onchange = ruleThresholdHint;
+    resetRuleForm();
+  }
+  const [notes, rules] = await Promise.all([api("/api/notifications"), api("/api/alert-rules")]);
+  updateUnread(notes.unread);
+  $("notifications").replaceChildren(...(notes.items.length ? notes.items.map((n) => el("li", { class: n.is_read ? "" : "unread" },
+    el("div", { class: "body" }, el("strong", {}, n.title), el("span", {}, n.body),
+      el("span", { class: "muted" }, `${n.created_at}` + (n.email_status ? ` · email: ${n.email_status}` : "")),
+      n.link && n.kind !== "alert" ? el("a", { href: n.link }, "Open") : null),
+    n.is_read ? null : el("button", { class: "secondary", onclick: async () => {
+      await api(`/api/notifications/${n.id}/read`, { method: "POST" }); renderAlerts();
+    } }, "Mark as read")))
+    : [el("li", {}, el("span", { class: "muted" }, "No notifications."))]));
+  $("rules").replaceChildren(...(rules.length ? rules.map((r) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, r.text),
+      el("span", { class: "muted" }, `${r.id} · ${r.is_active ? (r.is_triggered ? "on · currently crossed" : "on") : "off"}`)),
+    el("div", { class: "actions" },
+      el("button", { class: "secondary", onclick: async () => {
+        await api(`/api/alert-rules/${r.id}`, { method: "PUT", json: { kpi: r.kpi, condition: r.condition, threshold: r.threshold, is_active: !r.is_active } });
+        renderAlerts();
+      } }, r.is_active ? "Turn off" : "Turn on"),
+      el("button", { class: "secondary", onclick: () => {
+        editingRule = r;
+        $("rule-form-title").textContent = `Edit ${r.id}`; $("rule-cancel-edit").hidden = false;
+        $("rule-kpi").value = r.kpi; $("rule-condition").value = r.condition; ruleThresholdHint();
+        $("rule-threshold").value = r.unit === "percent" ? +(r.threshold * 100).toFixed(4) : r.threshold;
+        $("rule-form").scrollIntoView();
+      } }, "Edit"),
+      el("button", { class: "danger", onclick: async () => {
+        if (!confirm(`Delete rule ${r.id}?`)) return;
+        await api(`/api/alert-rules/${r.id}`, { method: "DELETE" }); renderAlerts();
+      } }, "Delete"))))
+    : [el("li", {}, el("span", { class: "muted" }, "No rules yet."))]));
+}
+
+$("rule-cancel-edit").onclick = resetRuleForm;
+$("rule-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("rule-error").textContent = "";
+  const kpi = $("rule-kpi").value;
+  const raw = $("rule-threshold").value.trim();
+  const n = Number(raw);
+  // Ô % nhập 20 nghĩa là 20%, lưu 0.2. Ô trống hoặc không phải số gửi nguyên để server báo lỗi.
+  const threshold = raw === "" || Number.isNaN(n) ? raw : KPI_UNITS[kpi] === "percent" ? n / 100 : n;
+  const body = { kpi, condition: $("rule-condition").value, threshold, is_active: editingRule ? editingRule.is_active : true };
+  try {
+    if (editingRule) await api(`/api/alert-rules/${editingRule.id}`, { method: "PUT", json: body });
+    else await api("/api/alert-rules", { method: "POST", json: body });
+    toast("Rule saved"); resetRuleForm(); renderAlerts();
+  } catch (err) { $("rule-error").textContent = err.message; }
+};
+
+function updateUnread(n) { $("unread").hidden = !n; $("unread").textContent = n; }
+async function refreshUnread() { try { updateUnread((await api("/api/notifications")).unread); } catch { /* đã xử lý ở api() */ } }
+
+// ------------------------------------------------------------------ hồ sơ
+
+async function renderProfile() {
+  show("profile");
+  const s = await api("/api/notification-settings");
+  $("profile-email").textContent = s.has_email ? `Emails go to ${s.email}.` : "You have no email address saved, so you only get in-app notifications.";
+  $("set-alert").checked = s.email_on_alert; $("set-share").checked = s.email_on_share;
+}
+for (const id of ["set-alert", "set-share"]) {
+  $(id).onchange = async () => {
+    await api("/api/notification-settings", { method: "PUT", json: { email_on_alert: $("set-alert").checked, email_on_share: $("set-share").checked } });
+    toast("Settings saved");
+  };
+}
+
+// ------------------------------------------------------------------ công cụ demo (Admin)
+
+async function renderAdmin() {
+  show("upload");
+  const m = await api("/api/dev/mailbox");
+  $("dev-mail").checked = m.mail_failing; $("dev-pdf").checked = m.pdf_failing;
+  $("dev-mailbox").replaceChildren(...(m.items.length ? m.items.slice(0, 30).map((x) => el("li", {},
+    el("div", { class: "body" }, el("strong", {}, x.subject),
+      el("span", { class: "muted" }, `to ${x.to_email} · ${x.status} · attempts ${x.attempt} · queued ${x.queued_at}` + (x.sent_at ? ` · sent ${x.sent_at}` : "")))))
+    : [el("li", {}, el("span", { class: "muted" }, "The mailbox is empty."))]));
+}
+$("dev-replay").onclick = async () => {
+  const r = await api("/api/dev/replay-alerts", { method: "POST", json: { start: "2026-11-01", end: "2026-11-07" } });
+  $("dev-result").hidden = false;
+  $("dev-result").textContent = r.created.length ? r.created.map((c) => `${c.date}  ${c.rule_id}  ${c.title}`).join("\n") : "No new alerts.";
+  renderAdmin(); refreshUnread();
+};
+$("dev-mail").onchange = () => api("/api/dev/mail-failure", { method: "PUT", json: { failing: $("dev-mail").checked } });
+$("dev-pdf").onchange = () => api("/api/dev/pdf-failure", { method: "PUT", json: { failing: $("dev-pdf").checked } });
+
 // ------------------------------------------------------------------ upload
 
 $("upload-form").onsubmit = async (e) => {
@@ -443,10 +707,15 @@ async function route() {
   if (!me) { try { await loadMe(); } catch { return renderSignin(); } }
   const [, page, id] = (location.hash || "#/dashboard").split("/");
   try {
+    refreshUnread();
     if (page === "analytics") await renderAnalytics();
+    else if (page === "reports") await renderReports();
+    else if (page === "report") await renderReport(id);
+    else if (page === "alerts") await renderAlerts();
+    else if (page === "profile") await renderProfile();
     else if (page === "snapshots") await renderSnapshots();
     else if (page === "snapshot") await renderSnapshot(id);
-    else if (page === "upload" && me.is_admin) show("upload");
+    else if (page === "upload" && me.is_admin) await renderAdmin();
     else if (page === "upload") { $("error-text").textContent = "No access: you do not have permission to view or change this item."; show("error"); }
     else await renderDashboard();
   } catch (e) { showError(e); }

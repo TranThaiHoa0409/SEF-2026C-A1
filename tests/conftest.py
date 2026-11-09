@@ -26,6 +26,10 @@ def fresh_db(seeded_db, tmp_path, monkeypatch):
     path = tmp_path / "bizboard.db"
     shutil.copy(seeded_db, path)
     monkeypatch.setenv("BIZBOARD_DB", str(path))
+    monkeypatch.setenv("BIZBOARD_REPORTS", str(tmp_path / "reports"))
+    from app import notify, pdf
+    monkeypatch.setitem(notify.mail_server, "failing", False)
+    monkeypatch.setitem(pdf.pdf_engine, "failing", False)
     return path
 
 
