@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, db, scheduler
-from .routers import kpis, session, uploads
+from .routers import dashboard, kpis, session, snapshots, uploads
 
 
 @asynccontextmanager
@@ -25,6 +25,8 @@ app = FastAPI(title="BizBoard prototype", lifespan=lifespan)
 app.include_router(session.router)
 app.include_router(kpis.router)
 app.include_router(uploads.router)
+app.include_router(dashboard.router)
+app.include_router(snapshots.router)
 
 
 @app.get("/", include_in_schema=False)

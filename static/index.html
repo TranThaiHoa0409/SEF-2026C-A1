@@ -5,34 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BizBoard</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 </head>
 <body>
   <header>
     <h1>BizBoard</h1>
+    <nav id="nav" hidden>
+      <a href="#/dashboard">Dashboard</a>
+      <a href="#/snapshots">Snapshots</a>
+      <a href="#/upload" id="nav-upload" hidden>Upload</a>
+    </nav>
     <div id="who"></div>
   </header>
+
   <main>
-    <section id="signin" hidden>
+    <!-- Đăng nhập -->
+    <section id="view-signin" class="view" hidden>
       <h2>Sign in with a sample account</h2>
       <div class="accounts" id="accounts"></div>
       <p class="error" id="signin-error"></p>
     </section>
 
-    <section id="home" hidden>
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="view" hidden>
+      <div class="periods" id="periods" role="group" aria-label="Time period"></div>
       <h2 id="period-title"></h2>
       <p class="muted" id="refresh"></p>
-      <div class="grid" id="kpis"></div>
-
-      <div id="admin" hidden>
-        <h2>Upload orders file</h2>
-        <form id="upload-form">
-          <input type="file" name="file" accept=".csv" required>
-          <button type="submit">Upload</button>
-        </form>
-        <pre id="upload-result" hidden></pre>
+      <div class="toolbar">
+        <button id="open-catalogue">Widgets</button>
+        <button id="capture" class="secondary">Capture snapshot</button>
+        <button id="reset-layout" class="secondary">Reset layout</button>
       </div>
+      <p class="muted hint">Drag a widget to move it. On a phone, press and hold first.</p>
+      <div id="skipped"></div>
+      <div class="grid" id="widgets"></div>
+      <p class="toast" id="toast" hidden></p>
+    </section>
+
+    <!-- Danh sách snapshot -->
+    <section id="view-snapshots" class="view" hidden>
+      <h2>My snapshots</h2>
+      <ul class="list" id="snap-mine"></ul>
+      <h2>Shared with me</h2>
+      <ul class="list" id="snap-shared"></ul>
+    </section>
+
+    <!-- Xem một snapshot -->
+    <section id="view-snapshot" class="view" hidden>
+      <a href="#/snapshots" class="back">← Back to snapshots</a>
+      <h2 id="snap-name"></h2>
+      <p class="muted" id="snap-meta"></p>
+      <div class="grid" id="snap-widgets"></div>
+    </section>
+
+    <!-- Upload (Admin) -->
+    <section id="view-upload" class="view" hidden>
+      <h2>Upload orders file</h2>
+      <form id="upload-form">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">Upload</button>
+      </form>
+      <pre id="upload-result" hidden></pre>
+    </section>
+
+    <section id="view-error" class="view" hidden>
+      <h2>No access</h2>
+      <p id="error-text"></p>
+      <a href="#/dashboard">Back to dashboard</a>
     </section>
   </main>
+
+  <!-- Danh mục widget -->
+  <dialog id="catalogue">
+    <form method="dialog" id="catalogue-form">
+      <h2>Widget catalogue</h2>
+      <p class="muted" id="catalogue-period"></p>
+      <input type="search" id="catalogue-search" placeholder="Search widgets by name" aria-label="Search widgets">
+      <div id="catalogue-list"></div>
+      <p class="error" id="catalogue-error"></p>
+      <div class="dialog-actions">
+        <button type="button" id="catalogue-default" class="secondary">Reset to default</button>
+        <button type="button" id="catalogue-cancel" class="secondary">Cancel</button>
+        <button type="submit" id="catalogue-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

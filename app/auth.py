@@ -68,10 +68,28 @@ def current_user(bb_session: Optional[str] = Cookie(default=None)) -> dict:
 
 # ------------------------------------------------------------------ phân quyền
 
+def is_shared_with(item_type: str, item_id: int, user_id: str) -> bool:
+    """Mục được chia sẻ cho người này, trực tiếp hoặc qua một nhóm người này đang thuộc."""
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM shares s WHERE s.item_type = ? AND s.item_id = ? AND ("
+            " (s.target_type = 'user' AND s.target_id = ?) OR"
+            " (s.target_type = 'group' AND s.target_id IN"
+            "   (SELECT group_id FROM group_members WHERE user_id = ?)))",
+            (item_type, item_id, user_id, user_id),
+        ).fetchone()
+    return row is not None
+
+
 def can(user: dict, action: str, item: Optional[dict] = None) -> bool:
     """Một chỗ duy nhất quyết định quyền. Các bước sau thêm action mới vào đây."""
     if action in ("upload_data", "view_upload_history"):
         return user["is_admin"]
+    if action == "view_snapshot":
+        return item is not None and (item["owner_id"] == user["id"]
+                                     or is_shared_with("snapshot", item["id"], user["id"]))
+    if action == "delete_snapshot":
+        return item is not None and item["owner_id"] == user["id"]
     return False
 
 

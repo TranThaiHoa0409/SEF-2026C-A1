@@ -8,7 +8,7 @@ Quy tắc:
 """
 import sqlite3
 from dataclasses import dataclass, field, asdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from . import config
@@ -170,29 +170,36 @@ def no_data_message(period: Period, flt: Optional[Filter]) -> str:
 
 # ------------------------------------------------------------------ truy vấn
 
+DT = "%Y-%m-%d %H:%M:%S"
+
+
 def _range_args(period: Period) -> tuple[str, str]:
     return period.start.isoformat() + " 00:00:00", (period.end + timedelta(days=1)).isoformat() + " 00:00:00"
 
 
-def _orders_where(period: Period, flt: Optional[Filter]) -> tuple[str, list]:
+def _orders_where(span: tuple[str, str], flt: Optional[Filter]) -> tuple[str, list]:
     sql = "status = 'completed' AND order_datetime >= ? AND order_datetime < ?"
-    args = list(_range_args(period))
+    args = list(span)
     if flt:
         sql += f" AND {flt.column} = ?"   # column đã được kiểm tra trong FILTER_COLUMNS
         args.append(flt.value)
     return sql, args
 
 
-def order_totals(conn: sqlite3.Connection, period: Period, flt: Optional[Filter] = None) -> tuple[int, float]:
-    where, args = _orders_where(period, flt)
+def _order_totals_span(conn: sqlite3.Connection, span: tuple[str, str], flt: Optional[Filter]) -> tuple[int, float]:
+    where, args = _orders_where(span, flt)
     count, revenue = conn.execute(
         f"SELECT COUNT(*), COALESCE(SUM(order_value), 0) FROM orders WHERE {where}", args
     ).fetchone()
     return count, round(revenue, 2)
 
 
+def order_totals(conn: sqlite3.Connection, period: Period, flt: Optional[Filter] = None) -> tuple[int, float]:
+    return _order_totals_span(conn, _range_args(period), flt)
+
+
 def _buyers(conn: sqlite3.Connection, period: Period, flt: Optional[Filter]) -> set[str]:
-    where, args = _orders_where(period, flt)
+    where, args = _orders_where(_range_args(period), flt)
     return {r[0] for r in conn.execute(f"SELECT DISTINCT customer_id FROM orders WHERE {where}", args)}
 
 
@@ -206,10 +213,14 @@ def _new_customers(conn: sqlite3.Connection, period: Period, flt: Optional[Filte
 
 
 def _app_users(conn: sqlite3.Connection, period: Period, flt: Optional[Filter]) -> tuple[int, int]:
+    return _app_users_span(conn, _range_args(period), flt)
+
+
+def _app_users_span(conn: sqlite3.Connection, span: tuple[str, str], flt: Optional[Filter]) -> tuple[int, int]:
     """(Active Users, số user có session converted = 1)."""
     sql = ("SELECT COUNT(DISTINCT user_id), COUNT(DISTINCT CASE WHEN converted = 1 THEN user_id END)"
            " FROM app_sessions WHERE session_datetime >= ? AND session_datetime < ?")
-    args = list(_range_args(period))
+    args = list(span)
     if flt:
         sql += f" AND user_id IN (SELECT customer_id FROM customers WHERE {flt.column} = ?)"
         args.append(flt.value)
@@ -291,3 +302,86 @@ def compute(conn: sqlite3.Connection, name: str, period: Period,
 def compute_all(conn: sqlite3.Connection, period: Period, flt: Optional[Filter] = None,
                 names: Optional[list[str]] = None) -> list[KpiResult]:
     return [compute(conn, n, period, flt) for n in (names or KPI_NAMES)]
+
+
+# ------------------------------------------------------------------ chuỗi thời gian
+
+# KPI vẽ được thành chuỗi theo giờ/ngày/tuần. Revenue Growth và Customer Retention Rate
+# so với kỳ trước nên không chia nhỏ theo điểm.
+SERIES_KPIS = ["Total Sales", "Average Order Value", "Total Revenue", "New Customers",
+               "Active Users", "Conversion Rate"]
+
+
+def default_granularity(period: Period) -> str:
+    """Today theo giờ, tới 31 ngày theo ngày, dài hơn theo tuần."""
+    if period.days == 1:
+        return "hour"
+    return "day" if period.days <= 31 else "week"
+
+
+def _buckets(period: Period, granularity: str) -> list[tuple[datetime, datetime, str]]:
+    start = datetime.combine(period.start, datetime.min.time())
+    stop = datetime.combine(period.end + timedelta(days=1), datetime.min.time())
+    out = []
+    if granularity == "hour":
+        t = start
+        while t < stop:
+            out.append((t, t + timedelta(hours=1), t.strftime("%H:00") if period.days == 1
+                        else f"{t.day} {t:%b} {t:%H}:00"))
+            t += timedelta(hours=1)
+    else:
+        step = timedelta(days=1 if granularity == "day" else 7)
+        t = start
+        while t < stop:
+            nxt = min(t + step, stop)
+            out.append((t, nxt, format_range(t.date(), (nxt - timedelta(days=1)).date())))
+            t = nxt
+    return out
+
+
+def _point_value(conn: sqlite3.Connection, name: str, lo: datetime, hi: datetime,
+                 flt: Optional[Filter]) -> Optional[float]:
+    """Giá trị của một điểm, None khi điểm đó không có dữ liệu (cùng quy tắc với compute)."""
+    span = (lo.strftime(DT), hi.strftime(DT))
+    if name in ("Total Sales", "Total Revenue", "Average Order Value"):
+        count, revenue = _order_totals_span(conn, span, flt)
+        if count == 0:
+            return None
+        return {"Total Sales": count, "Total Revenue": revenue,
+                "Average Order Value": round(revenue / count, 2)}[name]
+    if name == "New Customers":
+        count = _new_customers(conn, Period(lo.date(), (hi - timedelta(seconds=1)).date()), flt)
+        return count or None
+    active, converted = _app_users_span(conn, span, flt)
+    if active == 0:
+        return None
+    return active if name == "Active Users" else converted / active
+
+
+def series(conn: sqlite3.Connection, name: str, period: Period, flt: Optional[Filter] = None,
+           granularity: Optional[str] = None) -> dict:
+    """Chuỗi giá trị của một KPI theo giờ, ngày hoặc tuần.
+
+    New Customers chỉ có ngày đăng ký (không có giờ) nên không chia theo giờ: kỳ một ngày cho một điểm.
+    """
+    kdef = KPI_BY_NAME.get(name)
+    if name not in SERIES_KPIS:
+        raise ValueError(f"{name} cannot be shown as a trend.")
+    gran = granularity or default_granularity(period)
+    if gran not in ("hour", "day", "week"):
+        raise ValueError(f"Unknown granularity '{gran}'")
+    if name == "New Customers" and gran == "hour":
+        gran = "day"
+    out = {"name": name, "group": kdef.group, "unit": kdef.unit, "granularity": gran,
+           "status": "ok", "message": None, "points": []}
+    if flt and flt.column not in FILTER_SUPPORT[kdef.source]:
+        out["status"] = "not_applicable"
+        out["message"] = f"The filter {flt.label} does not apply to {name}."
+        return out
+    for lo, hi, label in _buckets(period, gran):
+        out["points"].append({"start": lo.strftime(DT), "end": hi.strftime(DT), "label": label,
+                              "value": _point_value(conn, name, lo, hi, flt)})
+    if all(p["value"] is None for p in out["points"]):
+        out["status"] = "no_data"
+        out["message"] = no_data_message(period, flt)
+    return out
