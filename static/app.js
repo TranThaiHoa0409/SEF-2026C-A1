@@ -314,6 +314,7 @@ async function loadTrend() {
   const empty = t.status !== "ok";
   $("trend-nodata").hidden = !empty;
   $("trend-chart-box").hidden = empty;
+  $("trend-hint").hidden = empty;
   $("nodata-clear").hidden = !an.filter;
   if (empty) {
     $("trend-nodata-text").textContent = t.status === "no_data"

@@ -77,7 +77,7 @@
           <button id="nodata-clear" class="secondary">Clear filter</button>
         </div>
         <div class="card chart-box" id="trend-chart-box"><canvas id="trend-chart" role="img" aria-label="Trend chart"></canvas></div>
-        <p class="muted hint">Tap a point to see the records behind it.</p>
+        <p class="muted hint" id="trend-hint">Tap a point to see the records behind it.</p>
       </div>
 
       <div id="panel-compare" hidden>
@@ -264,7 +264,7 @@
     <section id="view-error" class="view" hidden>
       <h2>No access</h2>
       <p id="error-text"></p>
-      <a href="#/dashboard">Back to dashboard</a>
+      <a href="#/dashboard" class="back">Back to dashboard</a>
     </section>
   </main>
 

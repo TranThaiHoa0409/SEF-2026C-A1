@@ -4,7 +4,7 @@ Chạy: .venv/Scripts/python -m uvicorn app.main:app --reload
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -31,6 +31,15 @@ app.include_router(snapshots.router)
 app.include_router(analytics.router)
 for r in (reports, shares, alerts, dev, groups, notes, admin):
     app.include_router(r.router)
+
+
+@app.middleware("http")
+async def no_store(request: Request, call_next):
+    """Dữ liệu API phụ thuộc người đang đăng nhập: không cho trình duyệt dùng lại bản cũ."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/", include_in_schema=False)
