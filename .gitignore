@@ -1,3 +1,11 @@
 .venv/
 __pycache__/
 *.db
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Tài liệu nhóm, không đưa lên repo
+BizBoard_Group_Work_Guide.md
+BizBoard – Kế hoạch xây dựng prototype (Python).md
